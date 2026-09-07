@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Multicable MIDI Bench</title>
+  <style>
+    :root {
+      --ink: #1d2521;
+      --muted: #69736e;
+      --line: #d6ddd8;
+      --paper: #f4f6f1;
+      --panel: #ffffff;
+      --forest: #145a48;
+      --forest-dark: #0e4034;
+      --lime: #d7f34b;
+      --yellow: #ffc857;
+      --red: #c74d42;
+      --blue: #3c6e9b;
+      --shadow: 0 14px 40px rgba(25, 49, 39, .08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font: 15px/1.45 "Trebuchet MS", "Segoe UI", sans-serif;
+      background-image: linear-gradient(135deg, rgba(20,90,72,.06) 0, transparent 38%), linear-gradient(315deg, rgba(255,200,87,.08) 0, transparent 35%);
+    }
+    button, select, input { font: inherit; }
+    button { cursor: pointer; }
+    .shell { max-width: 1320px; margin: 0 auto; padding: 28px 26px 52px; }
+    header { display: flex; justify-content: space-between; gap: 24px; align-items: end; margin-bottom: 28px; }
+    .eyebrow { color: var(--forest); font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+    h1 { margin: 5px 0 0; max-width: 650px; font: 700 clamp(34px, 5vw, 64px)/.98 Georgia, serif; letter-spacing: 0; }
+    .lede { max-width: 420px; margin: 0; color: var(--muted); }
+    .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+    .toolbar select { flex: 1; max-width: 560px; }
+    .button { border: 0; border-radius: 5px; padding: 11px 16px; font-weight: 800; transition: transform .15s, background .15s; }
+    .button:hover { transform: translateY(-1px); }
+    .button.primary { color: #fff; background: var(--forest); }
+    .button.primary:hover { background: var(--forest-dark); }
+    .button.secondary { color: var(--forest-dark); background: var(--lime); }
+    .button.ghost { color: var(--forest-dark); background: transparent; border: 1px solid var(--line); }
+    .button:disabled { cursor: not-allowed; opacity: .45; transform: none; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(330px, .8fr); gap: 18px; align-items: start; }
+    .panel { background: var(--panel); border: 1px solid rgba(20,90,72,.11); box-shadow: var(--shadow); border-radius: 8px; }
+    .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 17px 20px; border-bottom: 1px solid var(--line); }
+    .panel-head h2 { margin: 0; font-size: 15px; letter-spacing: .02em; }
+    .panel-head span { color: var(--muted); font-size: 12px; }
+    .cable-grid { padding: 17px 20px 20px; }
+    .cable-selectors { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .cable-selectors label { color: var(--muted); font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+    .cable-selectors select { display: block; margin-top: 6px; }
+    .plot-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .plot-controls .cable-selectors { display: flex; gap: 8px; }
+    .plot-controls .cable-selectors label { position: relative; width: 210px; color: transparent; font-size: 0; }
+    .plot-controls .cable-selectors label::before { content: attr(data-label); position: absolute; left: 0; bottom: calc(100% + 6px); padding: 4px 7px; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 3px; box-shadow: 0 4px 12px rgba(25, 49, 39, .1); font-size: 11px; font-weight: 800; letter-spacing: .04em; opacity: 0; pointer-events: none; white-space: nowrap; transform: translateY(3px); transition: opacity .15s, transform .15s; }
+    .plot-controls .cable-selectors label:hover::before,
+    .plot-controls .cable-selectors label:focus-within::before { opacity: 1; transform: translateY(0); }
+    .plot-controls .cable-selectors select { display: block; width: 100%; margin-top: 0; color: var(--ink); background: #fbfcfa; font-size: 15px; line-height: 1.45; }
+    .dwell-control { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 800; white-space: nowrap; }
+    .dwell-control input { width: 78px; padding: 8px 7px; }
+    .cable-list { margin-top: 14px; color: var(--muted); font-size: 12px; }
+    .cable-list strong { color: var(--forest-dark); }
+    .cable-row { display: grid; grid-template-columns: 38px minmax(0, 1fr) minmax(0, 1fr) 94px; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid #edf0ed; }
+    .cable-row:last-child { border-bottom: 0; }
+    .cable-no { color: var(--forest); font: 700 15px Georgia, serif; }
+    select, input[type="number"] { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 4px; color: var(--ink); background: #fbfcfa; }
+    select:focus, input:focus, button:focus-visible { outline: 3px solid rgba(215,243,75,.75); outline-offset: 2px; }
+    .toggle { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .toggle input { accent-color: var(--forest); }
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 17px 20px 20px; border-top: 1px solid var(--line); }
+    .control label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+    .control-actions { grid-column: 1 / -1; display: flex; gap: 10px; margin-top: 4px; }
+    .status { margin: 18px 0; padding: 12px 15px; color: var(--forest-dark); background: rgba(215,243,75,.34); border-left: 4px solid var(--forest); border-radius: 3px; }
+    .status.error { color: #7c2d27; background: #f9e3df; border-color: var(--red); }
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); }
+    .stat { min-height: 103px; padding: 17px; background: var(--panel); }
+    .stat-value { display: block; margin-top: 7px; font: 700 32px/1 Georgia, serif; }
+    .stat-label { color: var(--muted); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .good { color: var(--forest); } .bad { color: var(--red); } .warn { color: #a06b00; }
+    .log { max-height: 280px; overflow: auto; padding: 12px 17px; font: 12px/1.55 Consolas, monospace; }
+    .log-line { padding: 3px 0; border-bottom: 1px solid #f0f2ef; }
+    .chart-panel { margin-top: 18px; }
+    .chart-panel canvas { display: block; width: 100%; height: 720px; }
+    #charts { width: 100%; }
+    .log-time { color: var(--muted); }
+    .note { margin: 18px 0 0; color: var(--muted); font-size: 12px; }
+    .hidden { display: none; }
+    @media (max-width: 850px) {
+      .shell { padding: 22px 16px 38px; }
+      header { display: block; } .lede { margin-top: 15px; }
+      .layout { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .toolbar { align-items: stretch; flex-wrap: wrap; } .toolbar select { min-width: 100%; max-width: none; }
+      .cable-selectors { grid-template-columns: 1fr; }
+      .controls { grid-template-columns: 1fr; } .control-actions { grid-column: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div id="charts">
+      <section class="panel chart-panel">
+        <div class="panel-head">
+          <div class="plot-controls">
+            <button class="button secondary" id="startButton" disabled>Start sweep</button>
+            <h2>All-cable latency</h2>
+            <div class="cable-selectors">
+              <label for="startCable" data-label="Start from" title="Start from one input"><span class="hidden">Start from one input</span><select id="startCable"><option value="">Connect MIDI first</option></select></label>
+              <label for="endCable" data-label="Test through" title="Test through one input"><span class="hidden">Test through one input</span><select id="endCable"><option value="">Connect MIDI first</option></select></label>
+            </div>
+            <button class="button ghost" id="stopButton" disabled>Stop</button>
+            <button class="button ghost" id="clearButton">Clear results</button>
+            <label class="dwell-control" for="dwell">Dwell ms<input id="dwell" type="number" min="1" max="10000" step="1" value="500" aria-label="Dwell time in milliseconds"></label>
+          </div>
+          <span>solid average / dashed peak</span>
+        </div>
+        <canvas height="720" aria-label="Latency chart for all selected cables"></canvas>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    'use strict';
+
+    const MAX_CABLES = 8;
+    const MIDI_MESSAGE_WIRE_TIME_MS = (3 * 10 / 31250) * 1000;
+    const SETTINGS_KEY = 'multicable-midi-bench-settings';
+    const savedSettings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+    const state = {
+      midi: null, running: false, preparing: false, draining: false, drainTimer: null, initialTimer: null, timer: null, startedAt: 0, lastRateAt: 0, lastRateCount: 0, sweepInterval: 40, sweepTimer: null, chartFramePending: false,
+      totals: { sent: 0, received: 0, corrupt: 0, unexpected: 0 },
+      latencies: [], cables: [], cablePairs: [], selectedInputs: [], selectedOutputs: []
+    };
+    const $ = (id) => document.getElementById(id);
+    $('dwell').value = savedSettings.dwell || $('dwell').value;
+
+    function setStatus(message, isError = false) {
+      const status = $('status');
+      if (status) {
+        status.textContent = message;
+        status.classList.toggle('error', isError);
+      }
+      log(message);
+    }
+
+    function log(message) {
+      const line = document.createElement('div');
+      if (!$('log')) { console.info(message); return; }
+      line.className = 'log-line';
+      const time = new Date().toLocaleTimeString([], { hour12: false });
+      line.innerHTML = '<span class="log-time">' + time + '</span> ' + message;
+      $('log').prepend(line);
+    }
+
+    function portsOf(type) {
+      return state.midi ? [...state.midi[type].values()] : [];
+    }
+
+    function portLabel(port) {
+      return (port.name || 'Unnamed port') + (port.manufacturer ? ' / ' + port.manufacturer : '');
+    }
+
+    function cableKey(port) {
+      const name = port.name || 'Unnamed port';
+      return name.replace(/^midi\s*(in|out)\s*\d*\s*[:_-]?\s*/i, '').replace(/\b(input|output|in|out)\b/gi, '').replace(/[\s:_-]+/g, ' ').trim().toLowerCase();
+    }
+
+    function cableDisplayName(port) {
+      const name = port.name || 'Unnamed cable';
+      return name.replace(/^midi\s*(in|out)\s*\d*\s*[:_-]?\s*/i, '').replace(/\b(input|output|in|out)\b/gi, '').replace(/^[\s:_-]+|[\s:_-]+$/g, '').trim() || name;
+    }
+
+    function saveSettings() {
+      const settings = {
+        startCable: $('startCable').value,
+        endCable: $('endCable').value,
+        dwell: $('dwell').value
+      };
+      Object.assign(savedSettings, settings);
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    }
+
+    function cableRange() {
+      const start = state.cablePairs.findIndex((port) => port.inputId === $('startCable').value);
+      const end = state.cablePairs.findIndex((port) => port.inputId === $('endCable').value);
+      if (start < 0 || end < start || end - start + 1 > MAX_CABLES) return null;
+      return { start, end };
+    }
+
+    function renderEndCables(selectedKey = '') {
+      const end = $('endCable');
+      const startIndex = state.cablePairs.findIndex((port) => port.inputId === $('startCable').value);
+      const available = startIndex < 0 ? [] : state.cablePairs.slice(startIndex);
+      end.replaceChildren(new Option('Select end input', ''));
+      available.forEach((port) => end.add(new Option(port.name, port.inputId)));
+      end.value = available.some((port) => port.inputId === selectedKey) ? selectedKey : '';
+      end.disabled = startIndex < 0 || state.running;
+    }
+
+    function buildCableRows() {
+      const inputs = portsOf('inputs');
+      const outputs = portsOf('outputs');
+      const outputByKey = new Map();
+      outputs.forEach((port) => { const key = cableKey(port); if (!outputByKey.has(key)) outputByKey.set(key, []); outputByKey.get(key).push(port); });
+      const inputCounts = new Map();
+      state.cablePairs = inputs.flatMap((input) => {
+        const baseKey = cableKey(input);
+        const outputsForCable = outputByKey.get(baseKey) || [];
+        const pairIndex = inputCounts.get(baseKey) || 0;
+        inputCounts.set(baseKey, pairIndex + 1);
+        const output = outputsForCable[pairIndex];
+        return [{ key: baseKey + '#' + pairIndex, baseKey, name: input.name || 'Unnamed MIDI input', inputId: input.id, outputId: output ? output.id : '' }];
+      });
+      const start = $('startCable');
+      start.replaceChildren(new Option('Select start input', ''));
+      state.cablePairs.forEach((port) => start.add(new Option(port.name, port.inputId)));
+      const savedStart = state.cablePairs.find((port) => port.inputId === savedSettings.startCable || port.name === savedSettings.startCable);
+      const savedEnd = state.cablePairs.find((port) => port.inputId === savedSettings.endCable || port.name === savedSettings.endCable);
+      const savedStartAvailable = Boolean(savedStart);
+      start.value = savedStart ? savedStart.inputId : '';
+      renderEndCables(savedEnd ? savedEnd.inputId : '');
+      const savedEndAvailable = Boolean(savedEnd && $('endCable').value === savedEnd.inputId);
+      if (savedStart || savedEnd) saveSettings();
+      state.cables = state.cablePairs.map((port) => ({ ...port, expected: new Map(), pending: new Map(), sent: 0, received: 0, corrupt: 0, unexpected: 0, activeInterval: 0, intervalSamples: new Map(), sweepResults: [] }));
+      updateSelectedInterfaces();
+      const range = cableRange();
+      $('startButton').disabled = !state.midi || !range || state.selectedOutputs.length !== state.selectedInputs.length;
+      if (state.midi && (savedSettings.startCable || savedSettings.endCable) && (!savedStartAvailable || !savedEndAvailable) && state.cablePairs.length) setStatus('Previously selected cable names are unavailable. Select the start and end cables again.', true);
+    }
+
+    function selectedCables() {
+      updateSelectedInterfaces();
+      const range = cableRange();
+      return range ? state.cables.slice(range.start, range.end + 1).filter((port) => port.outputId) : [];
+    }
+
+    function updateSelectedInterfaces() {
+      const range = cableRange();
+      const selected = range ? state.cablePairs.slice(range.start, range.end + 1) : [];
+      state.selectedInputs = selected.map((port) => port.inputId);
+      state.selectedOutputs = selected.map((port) => port.outputId).filter(Boolean);
+    }
+
+    function packedId(type, channel, note, velocity) {
+      return type + ':' + (channel + 1) + ':' + note + ':' + velocity;
+    }
+
+    function wireAdjustedRate(interval) {
+      return 1000 / (interval + MIDI_MESSAGE_WIRE_TIME_MS);
+    }
+
+    function makeNote(cable, type, note, velocity, channel, interval = state.sweepInterval) {
+      const id = packedId(type, channel, note, velocity);
+      const sentAt = performance.now();
+      cable.expected.set(id, (cable.expected.get(id) || 0) + 1);
+      const timestamps = cable.pending.get(id) || [];
+      timestamps.push({ sentAt, interval });
+      cable.pending.set(id, timestamps);
+      const output = state.midi.outputs.get(cable.outputId);
+      if (!output) return;
+      output.send([type === 'on' ? 0x90 + channel : 0x80 + channel, note, velocity]);
+      cable.sent += 1;
+      state.totals.sent += 1;
+    }
+
+    function sendTick() {
+      const channel = 0;
+      const velocity = 90;
+      const note = 36 + (Math.floor(state.totals.sent / Math.max(1, selectedCables().length)) % 48);
+      selectedCables().forEach((cable) => {
+        cable.sweepSent += 1;
+        const interval = state.sweepInterval;
+        makeNote(cable, 'on', note, velocity, channel, interval);
+        window.setTimeout(() => makeNote(cable, 'off', note, 0, channel, interval), Math.max(1, interval));
+      });
+      state.sweepTimer = window.setTimeout(sendTick, state.sweepInterval);
+      updateStats();
+    }
+
+    function handleMIDIMessage(event) {
+      if (!state.running && !state.draining) return;
+      if (state.preparing) return;
+      const [status, note, velocity] = event.data;
+      const messageType = (status & 0xf0) === 0x90 && velocity > 0 ? 'on' : ((status & 0xf0) === 0x80 || ((status & 0xf0) === 0x90 && velocity === 0) ? 'off' : null);
+      if (!messageType) return;
+      const channel = status & 0x0f;
+      const cable = state.cables.find((candidate) => candidate.inputId === event.target.id);
+      if (!cable) return;
+      const id = packedId(messageType, channel, note, messageType === 'off' ? 0 : velocity);
+      const available = cable.expected.get(id) || 0;
+      if (available > 0) {
+        cable.expected.set(id, available - 1);
+        cable.received += 1;
+        state.totals.received += 1;
+        const timestamps = cable.pending.get(id);
+        const pendingMessage = timestamps && timestamps.shift();
+        if (pendingMessage !== undefined) {
+          const latency = performance.now() - pendingMessage.sentAt;
+          state.latencies.push(latency);
+          const samples = cable.intervalSamples.get(pendingMessage.interval) || [];
+          samples.push(latency);
+          cable.intervalSamples.set(pendingMessage.interval, samples);
+          if (timestamps.length === 0) cable.pending.delete(id);
+        }
+      } else {
+        cable.corrupt += 1;
+        state.totals.corrupt += 1;
+      }
+      updateStats();
+      scheduleChartDraw();
+    }
+
+    function updateStats() {
+      const selected = selectedCables();
+      const missing = selected.reduce((sum, cable) => sum + [...cable.expected.values()].reduce((inner, count) => inner + count, 0), 0);
+      if ($('sent')) $('sent').textContent = state.totals.sent;
+      if ($('received')) $('received').textContent = state.totals.received;
+      if ($('missing')) $('missing').textContent = state.running ? '-' : missing;
+      if ($('corrupt')) $('corrupt').textContent = state.totals.corrupt;
+      if ($('unexpected')) $('unexpected').textContent = state.totals.unexpected;
+      const sorted = [...state.latencies].sort((a, b) => a - b);
+      if ($('latency')) $('latency').textContent = sorted.length ? sorted[Math.floor(sorted.length * .5)].toFixed(1) + ' ms' : '-';
+      const now = performance.now();
+      if (now - state.lastRateAt > 500) {
+        const rate = (state.totals.received - state.lastRateCount) / ((now - state.lastRateAt || 1) / 1000);
+        if ($('rate')) $('rate').textContent = Math.round(rate) + ' msg/s';
+        state.lastRateAt = now; state.lastRateCount = state.totals.received;
+      }
+    }
+
+    function clearResults() {
+      stopTest();
+      state.totals = { sent: 0, received: 0, corrupt: 0, unexpected: 0 };
+      state.latencies = [];
+      window.clearTimeout(state.drainTimer);
+      window.clearTimeout(state.initialTimer);
+      state.draining = false;
+      state.preparing = false;
+      state.cables.forEach((cable) => { cable.expected.clear(); cable.pending.clear(); cable.sent = 0; cable.received = 0; cable.corrupt = 0; cable.sweepSent = 0; cable.activeInterval = 0; cable.intervalSamples.clear(); cable.sweepResults = []; });
+      if ($('log')) $('log').replaceChildren(); drawCharts(); updateStats(); log('Results cleared.');
+    }
+
+    function finalizeSweepResults() {
+      state.cables.forEach((cable) => {
+        cable.sweepResults = [...cable.intervalSamples.entries()].map(([interval, samples]) => ({ interval, average: samples.reduce((sum, value) => sum + value, 0) / samples.length, peak: Math.max(...samples) }));
+      });
+    }
+
+    function drawCharts() {
+      const charts = $('charts');
+      const cables = selectedCables();
+      const panel = charts.querySelector('.chart-panel');
+      const canvas = panel.querySelector('canvas');
+      const context = canvas.getContext('2d');
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      const width = canvas.clientWidth || 760;
+      const height = 720;
+      const pixelRatio = window.devicePixelRatio || 1;
+      canvas.width = width * pixelRatio;
+      canvas.height = height * pixelRatio;
+      context.scale(pixelRatio, pixelRatio);
+      const palette = ['#145a48', '#c74d42', '#3c6e9b', '#a06b00', '#7a4e8a', '#3d7b59', '#b4537a', '#43525b'];
+      const allResults = cables.flatMap((cable) => [...cable.intervalSamples.entries()].map(([interval, samples]) => ({ interval, average: samples.reduce((sum, value) => sum + value, 0) / samples.length, peak: Math.max(...samples) })));
+      const max = Math.max(1, ...allResults.flatMap((result) => [result.average, result.peak]));
+      const left = 48, right = 20, top = 100, bottom = 62;
+      const plotWidth = width - left - right, plotHeight = height - top - bottom;
+      context.font = '11px Trebuchet MS'; context.fillStyle = '#69736e'; context.strokeStyle = '#d6ddd8'; context.lineWidth = 1;
+      for (let tick = 0; tick <= 4; tick += 1) { const y = top + plotHeight - (plotHeight * tick / 4); context.beginPath(); context.moveTo(left, y); context.lineTo(width - right, y); context.stroke(); context.fillText((max * tick / 4).toFixed(1), 5, y + 4); }
+      const intervalMarkers = [40, 30, 20, 10, 1];
+      intervalMarkers.forEach((interval) => { const x = left + plotWidth * (40 - interval) / 39; context.beginPath(); context.moveTo(x, top); context.lineTo(x, top + plotHeight); context.strokeStyle = '#e7ebe8'; context.stroke(); context.fillStyle = '#69736e'; context.fillText(String(interval), x - 7, height - 36); context.fillText(String(Math.round(wireAdjustedRate(interval))), x - 10, height - 14); });
+      const firstMarkerX = left;
+      const secondMarkerX = left + plotWidth * 10 / 39;
+      context.textAlign = 'center';
+      context.fillText('message interval (ms)', (firstMarkerX + secondMarkerX) / 2, height - 36);
+      context.fillText('wire-adjusted messages/second/cable', (firstMarkerX + secondMarkerX) / 2, height - 14);
+      context.textAlign = 'start';
+      const selected = selectedCables();
+      const missing = selected.reduce((sum, cable) => sum + [...cable.expected.values()].reduce((inner, count) => inner + count, 0), 0);
+      context.fillStyle = 'rgba(255, 255, 255, .88)';
+      context.fillRect(left + 8, top + 8, 146, 78);
+      context.fillStyle = '#1d2521';
+      context.font = '700 12px Trebuchet MS';
+      context.fillText('SENT      ' + state.totals.sent, left + 16, top + 25);
+      context.fillText('RECEIVED  ' + state.totals.received, left + 16, top + 42);
+      context.fillText('MISSING   ' + (state.running ? '-' : missing), left + 16, top + 59);
+      context.fillText('CORRUPT   ' + state.totals.corrupt, left + 16, top + 76);
+      cables.forEach((cable, index) => {
+        const liveResults = [...cable.intervalSamples.entries()].map(([interval, samples]) => ({ interval, average: samples.reduce((sum, value) => sum + value, 0) / samples.length, peak: Math.max(...samples) })).sort((a, b) => b.interval - a.interval);
+        const color = palette[index % palette.length];
+        ['average', 'peak'].forEach((key) => {
+          context.beginPath();
+          liveResults.forEach((result, point) => { const x = left + plotWidth * (40 - result.interval) / 39; const y = top + plotHeight - (plotHeight * result[key] / max); point ? context.lineTo(x, y) : context.moveTo(x, y); });
+          context.strokeStyle = color; context.lineWidth = key === 'average' ? 2.5 : 1.5; context.setLineDash(key === 'peak' ? [5, 4] : []); context.stroke();
+        });
+        context.setLineDash([]);
+        const label = cable.name;
+        const legendColumns = 2;
+        const legendStart = left + 170;
+        const legendWidth = (width - right - legendStart) / legendColumns;
+        const legendX = legendStart + (index % legendColumns) * legendWidth;
+        const legendY = 16 + Math.floor(index / legendColumns) * 18;
+        context.fillStyle = color; context.fillRect(legendX, legendY - 7, 12, 3); context.fillStyle = '#69736e'; context.font = '10px Trebuchet MS';
+        let line = '';
+        let lineNumber = 0;
+        [...label].forEach((character) => { if (context.measureText(line + character).width > legendWidth - 22) { context.fillText(line, legendX + 17, legendY + lineNumber * 11); line = character; lineNumber += 1; } else line += character; });
+        context.fillText(line, legendX + 17, legendY + lineNumber * 11);
+      });
+    }
+
+    function scheduleChartDraw() {
+      if (state.chartFramePending) return;
+      state.chartFramePending = true;
+      window.requestAnimationFrame(() => { state.chartFramePending = false; drawCharts(); });
+    }
+
+    function finishTest() {
+      state.draining = false;
+      state.drainTimer = null;
+      state.cables.forEach((cable) => {
+        const input = state.midi && state.midi.inputs.get(cable.inputId);
+        if (input) input.onmidimessage = null;
+      });
+      $('startCable').disabled = false; renderEndCables($('endCable').value);
+      finalizeSweepResults();
+      state.cables.forEach((cable) => { cable.activeInterval = 0; });
+      $('startButton').disabled = false; $('stopButton').disabled = true; if ($('runState')) $('runState').textContent = 'complete';
+      updateStats();
+      drawCharts();
+      const missing = selectedCables().reduce((sum, cable) => sum + [...cable.expected.values()].reduce((inner, count) => inner + count, 0), 0);
+      setStatus(missing || state.totals.corrupt ? 'Test complete: inspect missing or corrupt messages.' : 'Test complete: every returned message matched its expected ID.');
+      log('Stopped. Drain complete. Missing: ' + missing + ', corrupt: ' + state.totals.corrupt + '.');
+    }
+
+    function stopTest() {
+      if (!state.running || state.draining) return;
+      state.running = false;
+      window.clearInterval(state.timer);
+      window.clearTimeout(state.sweepTimer);
+      window.clearTimeout(state.initialTimer);
+      state.timer = null;
+      state.sweepTimer = null;
+      state.preparing = false;
+      state.draining = true;
+      $('stopButton').disabled = true; if ($('runState')) $('runState').textContent = 'draining';
+      setStatus('Transmission stopped. Waiting 100 ms for outstanding MIDI messages.');
+      log('Transmission stopped; draining outstanding messages for 100 ms.');
+      state.drainTimer = window.setTimeout(finishTest, 100);
+    }
+
+    function startTest() {
+      const cables = selectedCables();
+      if (!cables.length) { setStatus('Select an input, output and test checkbox for at least one cable.', true); return; }
+      clearResults(); state.running = true; state.preparing = true; state.startedAt = performance.now(); state.lastRateAt = state.startedAt; state.lastRateCount = 0; state.sweepInterval = 40;
+      $('startCable').disabled = true; $('endCable').disabled = true;
+      cables.forEach((cable) => { const input = state.midi.inputs.get(cable.inputId); if (input) input.onmidimessage = handleMIDIMessage; });
+      state.cables.forEach((cable) => { cable.activeInterval = 40; cable.intervalSamples.clear(); });
+      scheduleChartDraw();
+      state.initialTimer = window.setTimeout(() => {
+        state.initialTimer = null;
+        if (!state.running) return;
+        state.preparing = false;
+        sendTick();
+        window.setTimeout(advance, Math.max(1, Number($('dwell').value) || 500));
+      }, 3000);
+      $('startButton').disabled = true; $('stopButton').disabled = false; if ($('runState')) $('runState').textContent = 'running';
+      setStatus('Idle preparation for 3 seconds before transmission.'); log('Started ' + cables.length + ' cable(s); transmitting in 3 seconds.');
+      const advance = () => {
+        if (!state.running) return;
+        state.sweepInterval -= 1;
+        if (state.sweepInterval < 1) { stopTest(); return; }
+        state.cables.forEach((cable) => { cable.activeInterval = state.sweepInterval; });
+        log('Testing ' + state.sweepInterval + ' ms interval.');
+        window.setTimeout(advance, Math.max(1, Number($('dwell').value) || 500));
+      };
+    }
+
+    async function connectMIDI() {
+      if (!navigator.requestMIDIAccess) { setStatus('Web MIDI is not available in this browser. Use a Chromium-based browser over HTTPS or localhost.', true); return; }
+      try {
+        state.midi = await navigator.requestMIDIAccess();
+        state.midi.onstatechange = buildCableRows; buildCableRows();
+        setStatus('MIDI connected. Select the start and end cable names.');
+      } catch (error) { setStatus('Could not access MIDI on page load: ' + error.message, true); }
+    }
+
+    $('startButton').addEventListener('click', startTest);
+    $('stopButton').addEventListener('click', stopTest);
+    $('clearButton').addEventListener('click', clearResults);
+    ['startCable', 'endCable', 'dwell'].forEach((id) => $(id).addEventListener('change', () => { if (id === 'startCable') renderEndCables(); saveSettings(); if (!state.running && (id === 'startCable' || id === 'endCable')) { const range = cableRange(); updateSelectedInterfaces(); $('startButton').disabled = !state.midi || !range || state.selectedOutputs.length !== state.selectedInputs.length; } }));
+    window.addEventListener('beforeunload', stopTest);
+    buildCableRows();
+    connectMIDI();
+  </script>
+</body>
+</html>
